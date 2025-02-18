@@ -42,6 +42,19 @@ async function run() {
         res.status(500).send("Internal Server Error");
       }
     });
+    app.get("/resentResearchPapers", async (req, res) => {
+      try {
+        const papers = await researchPapersCollection
+          .find() // Filter papers where totalRating >= 150
+          .sort({ createdAt: -1 }) // Sort papers by createdAt as newest order
+          .limit(6) // Limit to the top 6 papers
+          .toArray();
+        res.send(papers);
+      } catch (error) {
+        console.error("Error fetching research papers:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
 
     app.get("/", (req, res) => {
       res.send("Lab is working");
