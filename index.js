@@ -27,8 +27,18 @@ async function run() {
     // Define your database and collection
     const db = client.db("peerResearchLab");
     const researchPapersCollection = db.collection("researchPapers");
+    const teamCollection = db.collection("team");
 
-    // Sample API route
+    // team related apis
+    app.get("/team", async (req, res) => {
+      const team = await teamCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(team);
+    });
+
+    // Research paper related api
     app.get("/topResearchPapers", async (req, res) => {
       try {
         const papers = await researchPapersCollection
