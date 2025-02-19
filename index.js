@@ -28,6 +28,14 @@ async function run() {
     const db = client.db("peerResearchLab");
     const researchPapersCollection = db.collection("researchPapers");
     const teamCollection = db.collection("team");
+    const usersCollection = db.collection("users");
+
+    // users related api
+    app.post("/users", async (req, res) => {
+      const userInfo = req.body;
+      const result = await usersCollection.insertOne(userInfo);
+      res.send(result);
+    });
 
     // team related apis
     app.get("/team", async (req, res) => {
