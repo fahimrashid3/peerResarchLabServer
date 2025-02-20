@@ -29,6 +29,7 @@ async function run() {
     const researchPapersCollection = db.collection("researchPapers");
     const teamCollection = db.collection("team");
     const usersCollection = db.collection("users");
+    const contactsCollection = db.collection("contacts");
 
     // users related api
     app.post("/users", async (req, res) => {
@@ -82,6 +83,13 @@ async function run() {
         console.error("Error fetching research papers:", error);
         res.status(500).send("Internal Server Error");
       }
+    });
+
+    // contact related api
+    app.post("/contacts", async (req, res) => {
+      const contactSMSInfo = req.body;
+      const result = await contactsCollection.insertOne(contactSMSInfo);
+      res.send(result);
     });
 
     app.get("/", (req, res) => {
