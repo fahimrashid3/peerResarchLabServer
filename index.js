@@ -8,7 +8,7 @@ const port = process.env.PORT || 8000;
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.maw05.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -30,8 +30,22 @@ async function run() {
     const teamCollection = db.collection("team");
     const usersCollection = db.collection("users");
     const contactsCollection = db.collection("contacts");
+    const labInfoCollection = db.collection("labInfo");
+
+    // get info
+    app.get("/labInfo", async (req, res) => {
+      console.log("API hit");
+      const info = await labInfoCollection.findOne();
+      res.send(info);
+    });
 
     // users related api
+
+    app.get("/users", async (req, res) => {
+      const users = await usersCollection.find().toArray();
+      res.send(users);
+    });
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
@@ -48,6 +62,23 @@ async function run() {
       res.send(result);
     });
 
+    // make admin
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        query,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
     // team related apis
     app.get("/team", async (req, res) => {
       const team = await teamCollection
