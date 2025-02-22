@@ -39,25 +39,18 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
-      if (token) {
-        console.log("token sent from jwt ");
-      }
       res.send({ token });
     });
 
     // middlewares
     const verifyToken = (req, res, next) => {
-      console.log(req.headers.authorization);
       if (!req.headers.authorization) {
-        console.log("token is not available");
-        return res.status(401).send({ message: "unauthorize access 48" });
+        return res.status(401).send({ message: "unauthorize access" });
       }
       const token = req.headers.authorization.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        console.log("Access Token Secret:", process.env.ACCESS_TOKEN_SECRET);
         if (err) {
-          console.log("Token verification error:", err);
-          return res.status(401).send({ message: "unauthorize access 53" });
+          return res.status(401).send({ message: "unauthorize access" });
         }
         req.decoded = decoded;
         next();
@@ -66,16 +59,13 @@ async function run() {
 
     app.get("/user/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      console.log(email);
       if (email !== req.decoded.email) {
-        console.log(" email is not the same email for the loged user");
-        return res.status(403).send({ message: "forbidden access 64" });
+        return res.status(403).send({ message: "forbidden access" });
       }
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       let admin = false;
       if (user) {
-        console.log("admin role setup successfully");
         admin = user?.role === "admin";
       }
       res.send({ admin });
