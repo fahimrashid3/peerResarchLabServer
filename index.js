@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config(); // Load environment variables
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -32,16 +33,63 @@ async function run() {
     const contactsCollection = db.collection("contacts");
     const labInfoCollection = db.collection("labInfo");
 
+    // jwt related api
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      if (token) {
+        console.log("token sent from jwt ");
+      }
+      res.send({ token });
+    });
+
+    // middlewares
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers.authorization);
+      if (!req.headers.authorization) {
+        console.log("token is not available");
+        return res.status(401).send({ message: "unauthorize access 48" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        console.log("Access Token Secret:", process.env.ACCESS_TOKEN_SECRET);
+        if (err) {
+          console.log("Token verification error:", err);
+          return res.status(401).send({ message: "unauthorize access 53" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+
+    app.get("/user/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      if (email !== req.decoded.email) {
+        console.log(" email is not the same email for the loged user");
+        return res.status(403).send({ message: "forbidden access 64" });
+      }
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        console.log("admin role setup successfully");
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
+    });
+
     // get info
     app.get("/labInfo", async (req, res) => {
-      console.log("API hit");
       const info = await labInfoCollection.findOne();
       res.send(info);
     });
 
     // users related api
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
     });
