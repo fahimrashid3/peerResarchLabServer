@@ -152,6 +152,59 @@ async function run() {
         res.status(500).send("Internal Server Error");
       }
     });
+    app.get("/researchPaper/:_id", async (req, res) => {
+      try {
+        const { _id } = req.params;
+
+        if (!_id) {
+          return res
+            .status(400)
+            .json({ message: "Invalid researchPaper ID format" });
+        }
+
+        const query = { _id: new ObjectId(_id) };
+
+        const researchPaper = await researchPapersCollection.findOne(query);
+
+        if (!researchPaper) {
+          return res.status(404).json({ message: "researchPaper not found" });
+        }
+
+        res.json(researchPaper);
+      } catch (error) {
+        console.error("Error fetching researchPaper:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+      }
+    });
+
+    app.get("/researchPapers", async (req, res) => {
+      const papers = await researchPapersCollection
+        .find()
+        .sort({ rating: -1 })
+        .toArray();
+      res.send(papers);
+    });
+
+    app.get("/paperAuthor/:email", async (req, res) => {
+      try {
+        const { email } = req.params;
+        const query = { email: email };
+
+        const result = await usersCollection.findOne(query, {
+          projection: { name: 1, photoUrl: 1 },
+        });
+
+        if (!result) {
+          return res.status(404).json({ message: "Author not found" });
+        }
+
+        res.json(result);
+      } catch (error) {
+        console.error("Error fetching provider:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+      }
+    });
+
     app.get("/resentResearchPapers", async (req, res) => {
       try {
         const papers = await researchPapersCollection
