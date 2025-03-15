@@ -32,6 +32,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const contactsCollection = db.collection("contacts");
     const labInfoCollection = db.collection("labInfo");
+    const openPositionsCollection = db.collection("openPositions");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -223,6 +224,11 @@ async function run() {
     app.post("/contacts", async (req, res) => {
       const contactSMSInfo = req.body;
       const result = await contactsCollection.insertOne(contactSMSInfo);
+      res.send(result);
+    });
+    // open position related api
+    app.get("/openPositions", async (req, res) => {
+      const result = await openPositionsCollection.find().toArray();
       res.send(result);
     });
 
