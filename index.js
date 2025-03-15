@@ -33,6 +33,7 @@ async function run() {
     const contactsCollection = db.collection("contacts");
     const labInfoCollection = db.collection("labInfo");
     const openPositionsCollection = db.collection("openPositions");
+    const researchAreasCollection = db.collection("researchAreas");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -229,6 +230,11 @@ async function run() {
     // open position related api
     app.get("/openPositions", async (req, res) => {
       const result = await openPositionsCollection.find().toArray();
+      res.send(result);
+    });
+    // open research area related api
+    app.get("/researchArea", async (req, res) => {
+      const result = await researchAreasCollection.find().toArray();
       res.send(result);
     });
 
