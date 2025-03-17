@@ -232,9 +232,25 @@ async function run() {
       const result = await openPositionsCollection.find().toArray();
       res.send(result);
     });
-    // open research area related api
+    // research area related api
     app.get("/researchArea", async (req, res) => {
       const result = await researchAreasCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/researchArea/:_id", async (req, res) => {
+      const _id = req.params._id;
+      console.log("Received _id:", _id);
+
+      const query = { _id: new ObjectId(_id) };
+      console.log("MongoDB Query:", query);
+
+      const result = await researchAreasCollection.findOne(query);
+
+      if (!result) {
+        return res.status(404).send({ message: "Research Area not found" });
+      }
+
       res.send(result);
     });
 
