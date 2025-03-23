@@ -1,6 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const multer = require("multer");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
@@ -34,6 +37,7 @@ async function run() {
     const labInfoCollection = db.collection("labInfo");
     const openPositionsCollection = db.collection("openPositions");
     const researchAreasCollection = db.collection("researchAreas");
+    const applicationsCollection = db.collection("appointment");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -58,6 +62,22 @@ async function run() {
         next();
       });
     };
+
+    const uploadDir = "uploads/";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const storage = multer.diskStorage({
+      destination: function (req, file, cb) {
+        cb(null, "uploads/"); // Save files in "uploads" directory
+      },
+      filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname)); // Rename file
+      },
+    });
+
+    const upload = multer({ storage: storage });
 
     // must be user after verify token
     const verifyAdmin = async (req, res, next) => {
@@ -96,6 +116,13 @@ async function run() {
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
+    });
+
+    app.get("/user", verifyToken, async (req, res) => {
+      const { email } = req.query;
+      const query = { email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
     });
 
     app.post("/users", async (req, res) => {
@@ -178,7 +205,7 @@ async function run() {
         res.status(500).json({ message: "Internal Server Error" });
       }
     });
-
+    // join us related
     app.get("/researchPapers", async (req, res) => {
       const papers = await researchPapersCollection
         .find()
@@ -186,6 +213,55 @@ async function run() {
         .toArray();
       res.send(papers);
     });
+
+    app.post(
+      "/submitApplication",
+      upload.single("resume"),
+      async (req, res) => {
+        try {
+          // Access form data
+          const formData = req.body;
+
+          // Access the uploaded file
+          const file = req.file;
+
+          console.log("Form Data:", formData);
+          console.log("Uploaded File:", file);
+
+          if (!file) {
+            throw new Error("No file uploaded");
+          }
+
+          // Combine form data and file information
+          const applicationData = {
+            ...formData,
+            resume: {
+              filename: file.filename,
+              path: file.path,
+              mimetype: file.mimetype,
+              size: file.size,
+            },
+            createdAt: new Date(),
+          };
+
+          // Insert the application data into the collection
+          const result = await applicationsCollection.insertOne(
+            applicationData
+          );
+          console.log("Application saved to database:", result.insertedId);
+
+          // Send success response
+          res
+            .status(200)
+            .json({ message: "Application submitted successfully!" });
+        } catch (error) {
+          console.error("Error processing application:", error);
+          res
+            .status(500)
+            .json({ error: error.message || "Internal server error" });
+        }
+      }
+    );
 
     app.get("/paperAuthor/:email", async (req, res) => {
       try {
@@ -240,10 +316,8 @@ async function run() {
 
     app.get("/researchArea/:_id", async (req, res) => {
       const _id = req.params._id;
-      console.log("Received _id:", _id);
 
       const query = { _id: new ObjectId(_id) };
-      console.log("MongoDB Query:", query);
 
       const result = await researchAreasCollection.findOne(query);
 
