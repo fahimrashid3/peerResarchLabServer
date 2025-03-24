@@ -37,7 +37,7 @@ async function run() {
     const labInfoCollection = db.collection("labInfo");
     const openPositionsCollection = db.collection("openPositions");
     const researchAreasCollection = db.collection("researchAreas");
-    const applicationsCollection = db.collection("appointment");
+    const applicationsCollection = db.collection("applications");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -70,14 +70,28 @@ async function run() {
 
     const storage = multer.diskStorage({
       destination: function (req, file, cb) {
-        cb(null, "uploads/"); // Save files in "uploads" directory
+        cb(null, uploadDir);
       },
       filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); // Rename file
+        const fileExt = path.extname(file.originalname);
+        const fileNem =
+          file.originalname
+            .replace(fileExt, "")
+            .toLowerCase()
+            .split(" ")
+            .join("_") +
+          "_" +
+          Date.now();
+        cb(null, fileNem + fileExt);
       },
     });
 
-    const upload = multer({ storage: storage });
+    const upload = multer({
+      storage: storage,
+      // limits: {
+      //   fileSize: 1000000,
+      // },
+    });
 
     // must be user after verify token
     const verifyAdmin = async (req, res, next) => {
@@ -248,12 +262,13 @@ async function run() {
           const result = await applicationsCollection.insertOne(
             applicationData
           );
-          console.log("Application saved to database:", result.insertedId);
+          console.log("upload to db result", result);
 
           // Send success response
-          res
-            .status(200)
-            .json({ message: "Application submitted successfully!" });
+          if (result)
+            res
+              .status(200)
+              .json({ message: "Application submitted successfully!" });
         } catch (error) {
           console.error("Error processing application:", error);
           res
