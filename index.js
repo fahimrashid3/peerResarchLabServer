@@ -39,6 +39,8 @@ async function run() {
     const researchAreasCollection = db.collection("researchAreas");
     const applicationsCollection = db.collection("applications");
 
+    app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
     // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -68,13 +70,12 @@ async function run() {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
+    // Multer Storage Configuration
     const storage = multer.diskStorage({
-      destination: function (req, file, cb) {
-        cb(null, uploadDir);
-      },
-      filename: function (req, file, cb) {
+      destination: (req, file, cb) => cb(null, uploadDir),
+      filename: (req, file, cb) => {
         const fileExt = path.extname(file.originalname);
-        const fileNem =
+        const fileName =
           file.originalname
             .replace(fileExt, "")
             .toLowerCase()
@@ -82,16 +83,10 @@ async function run() {
             .join("_") +
           "_" +
           Date.now();
-        cb(null, fileNem + fileExt);
+        cb(null, fileName + fileExt);
       },
     });
-
-    const upload = multer({
-      storage: storage,
-      // limits: {
-      //   fileSize: 1000000,
-      // },
-    });
+    const upload = multer({ storage });
 
     // must be user after verify token
     const verifyAdmin = async (req, res, next) => {
@@ -228,55 +223,65 @@ async function run() {
       res.send(papers);
     });
 
+    // join us application related apis
     app.post(
       "/submitApplication",
       upload.single("resume"),
+      verifyToken,
       async (req, res) => {
         try {
-          // Access form data
           const formData = req.body;
-
-          // Access the uploaded file
           const file = req.file;
 
-          console.log("Form Data:", formData);
-          console.log("Uploaded File:", file);
-
           if (!file) {
-            throw new Error("No file uploaded");
+            return res.status(400).json({ error: "No file uploaded" });
           }
 
-          // Combine form data and file information
           const applicationData = {
             ...formData,
             resume: {
               filename: file.filename,
-              path: file.path,
+              path: `uploads/${file.filename}`,
               mimetype: file.mimetype,
               size: file.size,
             },
             createdAt: new Date(),
           };
 
-          // Insert the application data into the collection
           const result = await applicationsCollection.insertOne(
             applicationData
           );
-          console.log("upload to db result", result);
-
-          // Send success response
-          if (result)
-            res
-              .status(200)
-              .json({ message: "Application submitted successfully!" });
+          res.status(200).json({
+            message: "Application submitted successfully!",
+            data: result,
+          });
         } catch (error) {
           console.error("Error processing application:", error);
-          res
-            .status(500)
-            .json({ error: error.message || "Internal server error" });
+          res.status(500).json({ error: "Internal server error" });
         }
       }
     );
+
+    app.get("/applications", verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const applications = await applicationsCollection
+          .find()
+          .sort({ createdAt: -1 }) // Newest first
+          .toArray();
+        res.json(applications);
+      } catch (error) {
+        console.error("Error fetching applications:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    app.get("/uploads/:filename", (req, res) => {
+      const filePath = path.join(__dirname, "uploads", req.params.filename);
+
+      // Set proper headers to display in browser
+      res.setHeader("Content-Type", "application/pdf");
+      res.sendFile(filePath);
+    });
 
     app.get("/paperAuthor/:email", async (req, res) => {
       try {
