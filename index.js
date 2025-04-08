@@ -65,14 +65,15 @@ async function run() {
       });
     };
 
-    const uploadDir = "uploads/";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir);
     }
 
     // Multer Storage Configuration
     const storage = multer.diskStorage({
-      destination: (req, file, cb) => cb(null, uploadDir),
+      destination: (req, file, cb) => cb(null, uploadsDir),
       filename: (req, file, cb) => {
         const fileExt = path.extname(file.originalname);
         const fileName =
@@ -169,20 +170,52 @@ async function run() {
     });
     // team related apis
     app.get("/team", async (req, res) => {
-      const team = await teamCollection
-        .find()
-        .sort({ createdAt: -1 })
-        .toArray();
+      const team = await teamCollection.find().toArray();
       res.send(team);
+    });
+    app.post("/team/:_id", verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const { _id } = req.params;
+        const application = await applicationsCollection.findOne({
+          _id: new ObjectId(_id),
+        });
+
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+
+        const existingMember = await teamCollection.findOne({
+          email: application.email,
+        });
+
+        if (existingMember) {
+          return res.status(400).json({
+            message: "Member with this email already exists in the team",
+            email: application.email,
+          });
+        }
+
+        const result = await teamCollection.insertOne(application);
+
+        await applicationsCollection.deleteOne({ _id: new ObjectId(_id) });
+
+        res.status(200).json({
+          message: "Member added to team successfully",
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error("Error moving application to team:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
     });
 
     // Research paper related api
     app.get("/topResearchPapers", async (req, res) => {
       try {
         const papers = await researchPapersCollection
-          .find({ totalRating: { $gte: 130 } }) // Filter papers where totalRating >= 150
-          .sort({ rating: -1 }) // Sort papers by rating in descending order
-          .limit(6) // Limit to the top 6 papers
+          .find({ totalRating: { $gte: 130 } })
+          .sort({ rating: -1 })
+          .limit(6)
           .toArray();
         res.send(papers);
       } catch (error) {
@@ -266,7 +299,7 @@ async function run() {
       try {
         const applications = await applicationsCollection
           .find()
-          .sort({ createdAt: -1 }) // Newest first
+          .sort({ createdAt: -1 })
           .toArray();
         res.json(applications);
       } catch (error) {
