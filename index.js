@@ -173,6 +173,7 @@ async function run() {
       const team = await teamCollection.find().toArray();
       res.send(team);
     });
+
     app.post("/team/:_id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { _id } = req.params;
@@ -356,6 +357,32 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    app.delete(
+      "/application/:_id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { _id } = req.params;
+        const filter = { _id: new ObjectId(_id) };
+        const application = await applicationsCollection.findOne(filter);
+        const { resume } = application;
+
+        // Delete the resume file from /uploads if it exists
+        if (resume?.path) {
+          const resumePath = path.join(__dirname, resume.path);
+          fs.unlink(resumePath, (err) => {
+            if (err) {
+              console.error("Failed to delete resume file:", err.message);
+            } else {
+              console.log("Resume file deleted:", resume.path);
+            }
+          });
+        }
+        const result = await applicationsCollection.deleteOne(filter);
+        res.send(result);
+      }
+    );
 
     app.get("/uploads/:filename", (req, res) => {
       const filePath = path.join(__dirname, "uploads", req.params.filename);
