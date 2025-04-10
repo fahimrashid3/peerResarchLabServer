@@ -176,12 +176,23 @@ async function run() {
     app.post("/team/:_id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { _id } = req.params;
+
+        if (!ObjectId.isValid(_id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid ID format",
+          });
+        }
+
         const application = await applicationsCollection.findOne({
           _id: new ObjectId(_id),
         });
 
         if (!application) {
-          return res.status(404).json({ message: "Application not found" });
+          return res.status(404).json({
+            success: false,
+            message: "Application not found",
+          });
         }
 
         const existingMember = await teamCollection.findOne({
@@ -190,26 +201,64 @@ async function run() {
 
         if (existingMember) {
           return res.status(400).json({
+            success: false,
             message: "Member with this email already exists in the team",
             email: application.email,
           });
         }
 
-        const result = await teamCollection.insertOne(application);
+        // Remove the resume object before inserting to teamCollection
+        const { resume, ...applicationWithoutResume } = application;
+
+        //TODO:remove one createdAt from team or user collection if needed
+        const teamMember = {
+          ...applicationWithoutResume,
+          createdAt: new Date(),
+        };
+
+        const result = await teamCollection.insertOne(teamMember);
+
+        await usersCollection.updateOne(
+          { email: application.email },
+          {
+            $set: {
+              role: application.role,
+              isTeamMember: true,
+              teamJoinDate: new Date(),
+            },
+          },
+          { upsert: true }
+        );
+
+        // Delete the resume file from /uploads if it exists
+        if (resume?.path) {
+          const resumePath = path.join(__dirname, resume.path);
+          fs.unlink(resumePath, (err) => {
+            if (err) {
+              console.error("Failed to delete resume file:", err.message);
+            } else {
+              console.log("Resume file deleted:", resume.path);
+            }
+          });
+        }
 
         await applicationsCollection.deleteOne({ _id: new ObjectId(_id) });
 
         res.status(200).json({
+          success: true,
           message: "Member added to team successfully",
           insertedId: result.insertedId,
+          role: application.role,
         });
       } catch (error) {
-        console.error("Error moving application to team:", error);
-        res.status(500).json({ message: "Internal server error" });
+        console.error("Error moving application to team:", error.message);
+        res.status(500).json({
+          success: false,
+          message: error.message || "Internal server error",
+        });
       }
     });
 
-    // Research paper related api
     app.get("/topResearchPapers", async (req, res) => {
       try {
         const papers = await researchPapersCollection
