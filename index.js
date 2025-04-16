@@ -32,6 +32,7 @@ async function run() {
     const db = client.db("peerResearchLab");
     const researchPapersCollection = db.collection("researchPapers");
     const teamCollection = db.collection("team");
+    const newsCollection = db.collection("news");
     const usersCollection = db.collection("users");
     const contactsCollection = db.collection("contacts");
     const labInfoCollection = db.collection("labInfo");
@@ -304,6 +305,14 @@ async function run() {
         .sort({ rating: -1 })
         .toArray();
       res.send(papers);
+    });
+    // news
+    app.get("/news", async (req, res) => {
+      const news = await newsCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(news);
     });
 
     // join us application related apis
