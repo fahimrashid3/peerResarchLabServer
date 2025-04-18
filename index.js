@@ -306,6 +306,7 @@ async function run() {
         .toArray();
       res.send(papers);
     });
+
     // news
     app.get("/news", async (req, res) => {
       const news = await newsCollection
@@ -313,6 +314,28 @@ async function run() {
         .sort({ createdAt: -1 })
         .toArray();
       res.send(news);
+    });
+    app.get("/news/:_id", async (req, res) => {
+      console.log("hitting api");
+      try {
+        const { _id } = req.params;
+
+        if (!ObjectId.isValid(_id)) {
+          return res.status(400).json({ message: "Invalid news ID format" });
+        }
+
+        const query = { _id: new ObjectId(_id) };
+        const news = await newsCollection.findOne(query);
+
+        if (!news) {
+          return res.status(404).json({ message: "News not found" });
+        }
+
+        res.json(news);
+      } catch (error) {
+        console.error("Error fetching news:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+      }
     });
 
     app.post("/news", verifyToken, verifyAdmin, async (req, res) => {
