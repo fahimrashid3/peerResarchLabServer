@@ -315,6 +315,38 @@ async function run() {
       res.send(news);
     });
 
+    app.post("/news", verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const data = req.body;
+        const email = data.authorEmail;
+
+        // Get author details using email
+        const authorINFO = await usersCollection.findOne({ email: email });
+
+        if (!authorINFO) {
+          return res.status(404).send({ message: "Author not found" });
+        }
+
+        const newNews = {
+          title: data.title,
+          summary: data.summary,
+          details: data.details,
+          authorEmail: email,
+          image: data.image,
+          createdAt: new Date(),
+        };
+
+        // Insert into MongoDB
+        const result = await newsCollection.insertOne(newNews);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding blog:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
     // join us application related apis
     app.post(
       "/submitApplication",
@@ -401,7 +433,7 @@ async function run() {
       res.sendFile(filePath);
     });
 
-    app.get("/paperAuthor/:email", async (req, res) => {
+    app.get("/post/:email", async (req, res) => {
       try {
         const { email } = req.params;
         const query = { email: email };
