@@ -316,7 +316,6 @@ async function run() {
       res.send(news);
     });
     app.get("/news/:_id", async (req, res) => {
-      console.log("hitting api");
       try {
         const { _id } = req.params;
 
@@ -364,6 +363,38 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding blog:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
+    app.post("/Research", verifyToken, async (req, res) => {
+      try {
+        const data = req.body;
+        const email = data.authorEmail;
+
+        // Get author details using email
+        const authorINFO = await usersCollection.findOne({ email: email });
+
+        if (!authorINFO) {
+          return res.status(404).send({ message: "Author not found" });
+        }
+
+        const newResearch = {
+          title: data.title,
+          details: data.details,
+          category: data.category,
+          authorEmail: email,
+          image: data.image,
+          createdAt: new Date(),
+        };
+
+        // Insert into MongoDB
+        const result = await researchPapersCollection.insertOne(newResearch);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding Research:", error);
         res
           .status(500)
           .json({ success: false, message: "Internal Server Error" });
