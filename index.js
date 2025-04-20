@@ -261,19 +261,6 @@ async function run() {
       }
     });
 
-    app.get("/topResearchPapers", async (req, res) => {
-      try {
-        const papers = await researchPapersCollection
-          .find({ totalRating: { $gte: 130 } })
-          .sort({ rating: -1 })
-          .limit(6)
-          .toArray();
-        res.send(papers);
-      } catch (error) {
-        console.error("Error fetching research papers:", error);
-        res.status(500).send("Internal Server Error");
-      }
-    });
     app.get("/researchPaper/:_id", async (req, res) => {
       try {
         const { _id } = req.params;
@@ -302,7 +289,7 @@ async function run() {
     app.get("/researchPapers", async (req, res) => {
       const papers = await researchPapersCollection
         .find()
-        .sort({ rating: -1 })
+        .sort({ createdAt: -1 })
         .toArray();
       res.send(papers);
     });
@@ -353,7 +340,7 @@ async function run() {
           title: data.title,
           summary: data.summary,
           details: data.details,
-          authorEmail: email,
+          authorEmail: req.decoded.email,
           image: data.image,
           createdAt: new Date(),
         };
@@ -385,7 +372,7 @@ async function run() {
           title: data.title,
           details: data.details,
           category: data.category,
-          authorEmail: email,
+          authorEmail: req.decoded.email,
           image: data.image,
           createdAt: new Date(),
         };
@@ -413,6 +400,9 @@ async function run() {
 
           if (!file) {
             return res.status(400).json({ error: "No file uploaded" });
+          }
+          if (formData.email !== req.decoded.email) {
+            return res.status(403).json({ error: "Forbidden access" });
           }
 
           const applicationData = {
@@ -522,8 +512,11 @@ async function run() {
     });
 
     // contact related api
-    app.post("/contacts", async (req, res) => {
+    app.post("/contacts", verifyToken, async (req, res) => {
       const contactSMSInfo = req.body;
+      if (contactSMSInfo.email !== req.decoded.email) {
+        return res.status(403).json({ error: "Forbidden access" });
+      }
       const result = await contactsCollection.insertOne(contactSMSInfo);
       res.send(result);
     });
