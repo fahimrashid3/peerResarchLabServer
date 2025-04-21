@@ -102,6 +102,17 @@ async function run() {
       }
       next();
     };
+    // must be user after verify token
+    const verifyRole = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isRole = user?.role;
+      if (!isRole) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
 
     app.get("/user/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -300,6 +311,43 @@ async function run() {
         res.status(500).json({ message: "Internal Server Error" });
       }
     });
+
+    const { ObjectId } = require("mongodb");
+
+    app.get("/morePaper/:_id", async (req, res) => {
+      try {
+        const { _id } = req.params;
+
+        const currentPaper = await researchPapersCollection.findOne({
+          _id: new ObjectId(_id),
+        });
+
+        if (!currentPaper) {
+          return res.status(404).json({ message: "Paper not found" });
+        }
+
+        const filter = {
+          authorEmail: currentPaper.authorEmail,
+          _id: { $ne: new ObjectId(_id) },
+        };
+
+        const morePapers = await researchPapersCollection
+          .find(filter)
+          .toArray();
+
+        if (!morePapers.length) {
+          return res.status(404).json({
+            message: "No other research papers found for this user",
+          });
+        }
+
+        res.send(morePapers);
+      } catch (error) {
+        console.error("Error fetching research papers:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     // join us related
     app.get("/researchPapers", async (req, res) => {
       const papers = await researchPapersCollection
@@ -426,7 +474,7 @@ async function run() {
       }
     );
 
-    app.post("/ResearchRequest", verifyToken, async (req, res) => {
+    app.post("/ResearchRequest", verifyToken, verifyRole, async (req, res) => {
       try {
         const data = req.body;
         const email = data.authorEmail;
