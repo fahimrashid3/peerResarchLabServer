@@ -117,6 +117,20 @@ async function run() {
       res.send({ admin });
     });
 
+    app.get("/user/role/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let role = false;
+      if (user) {
+        role = user?.role;
+      }
+      res.send({ role });
+    });
+
     // get info
     app.get("/labInfo", async (req, res) => {
       const info = await labInfoCollection.findOne();
