@@ -31,6 +31,7 @@ async function run() {
     // Define your database and collection
     const db = client.db("peerResearchLab");
     const researchPapersCollection = db.collection("researchPapers");
+    const researchPapersRequest = db.collection("researchPapersRequest");
     const teamCollection = db.collection("team");
     const newsCollection = db.collection("news");
     const usersCollection = db.collection("users");
@@ -294,6 +295,38 @@ async function run() {
       res.send(papers);
     });
 
+    app.post("/researchPaper/:_id", async (req, res) => {
+      try {
+        const { _id } = req.params;
+        const query = { _id: new ObjectId(_id) };
+
+        // Find the paper in the request collection
+        const paper = await researchPapersRequest.findOne(query);
+
+        if (!paper) {
+          return res.status(404).send({ message: "Research paper not found" });
+        }
+
+        // Insert into the final research collection
+        const insertResult = await researchPapersCollection.insertOne(paper);
+
+        if (insertResult.insertedId) {
+          // Delete from the request collection
+          const deleteResult = await researchPapersRequest.deleteOne(query);
+          return res.status(200).send({
+            message: "Paper published and removed from request list",
+            insertedId: insertResult.insertedId,
+            deletedCount: deleteResult.deletedCount,
+          });
+        } else {
+          return res.status(500).send({ message: "Failed to publish paper" });
+        }
+      } catch (error) {
+        console.error("Error publishing research paper:", error);
+        return res.status(500).send({ message: "Server error" });
+      }
+    });
+
     // news
     app.get("/news", async (req, res) => {
       const news = await newsCollection
@@ -356,7 +389,30 @@ async function run() {
       }
     });
 
-    app.post("/Research", verifyToken, async (req, res) => {
+    app.get("/ResearchRequest", verifyToken, verifyAdmin, async (req, res) => {
+      const researchRequest = await researchPapersRequest.find().toArray();
+      res.send(researchRequest);
+    });
+
+    app.delete(
+      "/ResearchRequest/:_id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { _id } = req.params;
+        const query = { _id: new ObjectId(_id) };
+
+        try {
+          const result = await researchPapersRequest.deleteOne(query);
+          res.send(result);
+        } catch (error) {
+          console.error("Delete error:", error);
+          res.status(500).send({ error: "Failed to delete research request." });
+        }
+      }
+    );
+
+    app.post("/ResearchRequest", verifyToken, async (req, res) => {
       try {
         const data = req.body;
         const email = data.authorEmail;
@@ -378,7 +434,7 @@ async function run() {
         };
 
         // Insert into MongoDB
-        const result = await researchPapersCollection.insertOne(newResearch);
+        const result = await researchPapersRequest.insertOne(newResearch);
         res.send(result);
       } catch (error) {
         console.error("Error adding Research:", error);
