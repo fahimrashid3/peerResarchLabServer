@@ -147,6 +147,51 @@ async function run() {
       const info = await labInfoCollection.findOne();
       res.send(info);
     });
+    app.patch("/basicInfo", verifyToken, verifyAdmin, async (req, res) => {
+      const options = { upsert: true };
+      const data = req.body;
+
+      const updatedDoc = {
+        $set: {
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          location: data.location,
+        },
+      };
+
+      try {
+        await labInfoCollection.updateOne({}, updatedDoc, options);
+        res.send({ success: true });
+      } catch (error) {
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+    // For social media update
+    app.patch("/socialMedia", verifyToken, verifyAdmin, async (req, res) => {
+      const data = req.body;
+
+      const updatedDoc = {
+        $set: {
+          socialMedia: data,
+        },
+      };
+
+      const options = { upsert: true };
+
+      try {
+        const result = await labInfoCollection.updateOne(
+          {},
+          updatedDoc,
+          options
+        );
+
+        res.send({ success: true, modifiedCount: result.modifiedCount });
+      } catch (error) {
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
 
     // users related api
 
@@ -333,6 +378,7 @@ async function run() {
 
         const morePapers = await researchPapersCollection
           .find(filter)
+          .sort({ createdAt: -1 })
           .toArray();
 
         if (!morePapers.length) {
@@ -631,10 +677,10 @@ async function run() {
 
     // contact related api
     app.post("/contacts", verifyToken, async (req, res) => {
-      const contactSMSInfo = req.body;
-      if (contactSMSInfo.email !== req.decoded.email) {
-        return res.status(403).json({ error: "Forbidden access" });
-      }
+      const contactSMSInfo = {
+        email: req.decoded.email,
+        ...req.body,
+      };
       const result = await contactsCollection.insertOne(contactSMSInfo);
       res.send(result);
     });
