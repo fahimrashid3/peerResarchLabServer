@@ -223,6 +223,54 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/updateUserAndTeam", async (req, res) => {
+      try {
+        const { email, name, photoUrl, phone, university, socialMedia } =
+          req.body;
+
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
+        }
+
+        const query = { email };
+
+        // Prepare update documents
+        const userUpdateDoc = {
+          $set: {
+            name: name,
+            photoUrl: photoUrl,
+          },
+        };
+
+        const teamUpdateDoc = {
+          $set: {
+            name,
+            phone,
+            university,
+            photoUrl,
+            socialMedia: socialMedia || {},
+          },
+        };
+
+        // Update both collections
+        const userResult = await usersCollection.updateOne(
+          query,
+          userUpdateDoc
+        );
+        const teamResult = await teamCollection.updateOne(query, teamUpdateDoc);
+
+        // Response
+        if (userResult.modifiedCount > 0 || teamResult.modifiedCount > 0) {
+          res.status(200).json({ message: "Profile updated successfully" });
+        } else {
+          res.status(200).json({ message: "No changes were made" });
+        }
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Failed to update profile" });
+      }
+    });
+
     // make admin
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
@@ -244,6 +292,13 @@ async function run() {
     app.get("/team", async (req, res) => {
       const team = await teamCollection.find().toArray();
       res.send(team);
+    });
+    app.get("/userInfoInTeam", verifyToken, async (req, res) => {
+      // const { email } = req.query;
+      const email = req.decoded.email;
+      const query = { email: email };
+      const result = await teamCollection.findOne(query);
+      res.send(result);
     });
 
     app.post("/team/:_id", verifyToken, verifyAdmin, async (req, res) => {
