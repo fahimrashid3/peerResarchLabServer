@@ -225,8 +225,15 @@ async function run() {
 
     app.patch("/updateUserAndTeam", async (req, res) => {
       try {
-        const { email, name, photoUrl, phone, university, socialMedia } =
-          req.body;
+        const {
+          email,
+          name,
+          photoUrl,
+          phone,
+          university,
+          details,
+          socialMedia,
+        } = req.body;
 
         if (!email) {
           return res.status(400).json({ message: "Email is required" });
@@ -247,7 +254,8 @@ async function run() {
             name,
             phone,
             university,
-            photoUrl,
+            image: photoUrl,
+            details,
             socialMedia: socialMedia || {},
           },
         };
